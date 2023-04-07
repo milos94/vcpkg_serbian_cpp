@@ -30,3 +30,12 @@
 *.exe
 *.out
 *.app
+
+#bin folders
+FileServerWin/FileServerWin/x64/
+FileServerWin/x64/
+FileServerWin/.vs/
+
+FileClientWin/FileClientWin/x64/
+FileClientWin/x64/
+FileClientWin/.vs/

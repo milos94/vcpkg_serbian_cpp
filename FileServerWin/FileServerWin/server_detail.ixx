@@ -28,19 +28,20 @@ asio::awaitable<void> session(tcp::socket socket)
 
         while (true)
         {
-            if (n == 0)
+            if (n == 1)
             {
                 break;
             }
             n = co_await socket.async_read_some(asio::buffer(data), asio::use_awaitable);
-            spdlog::info("Got {} bytes from the client", n);
+            spdlog::debug("Got {} bytes from the client", n);
             file.write(data.data(), n);
 
         }
 
         file.close();
+        spdlog::info("Successfuly recieved a file from client");
 
-        n = co_await socket.async_write_some(asio::buffer("We did it"), asio::use_awaitable);
+        n = co_await socket.async_write_some(asio::buffer("Sucess"), asio::use_awaitable);
     }
     catch (sys::system_error const& e)
     {

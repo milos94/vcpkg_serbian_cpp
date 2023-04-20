@@ -1,16 +1,35 @@
+#include <spdlog/spdlog.h>
+
 import client;
-import filestuff;
 import std.core;
 
-int main()
+int main(int argc, char** argv)
 {
-    std::string ip{"192.168.1.103"};
-    int port{55555};
-    std::string file_name{ "Veliki_Kazan.jpg" };
-    auto res = get_file_size(file_name);
-    if (res.has_value())
-    {
-        run_client(ip, port, file_name, res.value());
-    }
-    return 0;
+	if (argc < 4)
+	{
+		spdlog::error("Not enough arguments, four required IP ADDRESS, PORT NUMBER and FILE NAME");
+	}
+	std::string ip{ argv[1] };
+	std::string file_name{ argv[3] };
+
+	int port_number{};
+	std::string_view port{ argv[2] };
+
+	auto [ptr, ec] { std::from_chars(port.data(), port.data() + port.size(), port_number) };
+
+	if (ec == std::errc())
+	{
+		spdlog::info("Port number is {}", port_number);
+		run_client(ip, port_number, file_name);
+	}
+	else if (ec == std::errc::invalid_argument)
+	{
+		spdlog::error("That isn't a number.");
+	}
+	else if (ec == std::errc::result_out_of_range)
+	{
+		spdlog::error("This number is larger than an int.");
+	}
+
+	return 0;
 }

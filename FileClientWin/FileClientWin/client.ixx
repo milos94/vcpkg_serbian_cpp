@@ -6,9 +6,7 @@ module;
 #include <boost/asio/detached.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/write.hpp>
-#include <array>
 #include <string>
-#include <optional>
 #include <fstream>
 
 export module client;
@@ -17,12 +15,12 @@ namespace asio = boost::asio;
 namespace sys = boost::system;
 using boost::asio::ip::tcp;
 
-asio::awaitable<void> send_file_to_server(std::shared_ptr<tcp::socket> socket, std::string const& file_name, uintmax_t file_size)
+asio::awaitable<void> send_file_to_server(tcp::socket socket, std::string const& file_name)
 {
     try
     {
-        std::string data = fmt::format("{} {}", file_name, file_size);
-        size_t number_of_written_bytes = co_await socket->async_write_some(asio::buffer(data), asio::use_awaitable);
+        std::string data = fmt::format("{}", file_name);
+        size_t number_of_written_bytes = co_await socket.async_write_some(asio::buffer(data), asio::use_awaitable);
         spdlog::info("Sent '{}' to the server. Successfully wrote {} bytes", data, number_of_written_bytes);
 
         std::fstream file;
@@ -30,13 +28,11 @@ asio::awaitable<void> send_file_to_server(std::shared_ptr<tcp::socket> socket, s
 
         data.clear();
         data.resize(1000, '\0');
-        for (size_t i = 0; i < (file_size / 1000) + 1; ++i)
+
+        while (file.read(data.data(), 1000))
         {
-            if (file.read(data.data(), 1000))
-            {
-                number_of_written_bytes = co_await socket->async_write_some(asio::buffer(data), asio::use_awaitable);
-                spdlog::info("Wrote {} bytes to server", number_of_written_bytes);
-            }
+            number_of_written_bytes = co_await socket.async_write_some(asio::buffer(data), asio::use_awaitable);
+            spdlog::debug("Wrote {} bytes to server", number_of_written_bytes);
         }
 
         spdlog::info("Finished sending the data");
@@ -44,11 +40,11 @@ asio::awaitable<void> send_file_to_server(std::shared_ptr<tcp::socket> socket, s
         file.close();
 
         data.clear();
-        number_of_written_bytes = co_await socket->async_write_some(asio::buffer(data), asio::use_awaitable);
+        number_of_written_bytes = co_await socket.async_write_some(asio::buffer(""), asio::use_awaitable);
         spdlog::info("Wrote the extra empty buffer {}", number_of_written_bytes);
 
         data.resize(1000, '\0');
-        number_of_written_bytes = co_await socket->async_read_some(asio::buffer(data), asio::use_awaitable);
+        number_of_written_bytes = co_await socket.async_read_some(asio::buffer(data), asio::use_awaitable);
         spdlog::info("Response from server {}", data);
     }
     catch (sys::system_error const& e)
@@ -57,19 +53,18 @@ asio::awaitable<void> send_file_to_server(std::shared_ptr<tcp::socket> socket, s
     }
 }
 
-std::shared_ptr<tcp::socket> connect(std::string const & ip, int port, std::string const& file_name, uintmax_t file_size)
+export void run_client(std::string const& ip, int port, std::string const& file_name)
 {
     boost::asio::io_context io_context;
 
-    std::shared_ptr<tcp::socket> socket = std::make_shared<tcp::socket>(io_context);
-    
-    auto endpont = tcp::endpoint(boost::asio::ip::make_address_v4(ip), port);
-    
-    spdlog::info("Connecting to {}:{}", ip, port);
-    
-    sys::error_code err{};
+    tcp::socket socket{ io_context };
 
-    auto error = socket->connect(endpont,err);
+    auto endpont = tcp::endpoint(boost::asio::ip::make_address_v4(ip), port);
+
+    spdlog::info("Connecting to {}:{}", ip, port);
+
+    sys::error_code err{};
+    sys::error_code error = socket.connect(endpont, err);
 
     if (!error)
     {
@@ -77,19 +72,10 @@ std::shared_ptr<tcp::socket> connect(std::string const & ip, int port, std::stri
     }
     else
     {
-        spdlog::info("Failed to connect with error {}", error.message());
-        return nullptr;
+        spdlog::error("Failed to connect with error {}", error.message());
     }
-    
-    asio::co_spawn(io_context, send_file_to_server(socket, file_name, file_size), asio::detached);
+
+    asio::co_spawn(io_context, send_file_to_server(std::move(socket), file_name), asio::detached);
 
     io_context.run();
-
-    return socket;
-}
-
-export void run_client(std::string ip, int port, std::string const & file_name, uintmax_t file_size)
-{
-    auto socket = connect(ip, port, file_name, file_size);
-
 }

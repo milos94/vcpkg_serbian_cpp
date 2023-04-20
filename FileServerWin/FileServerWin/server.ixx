@@ -12,18 +12,18 @@ import :detail;
 
 namespace asio = boost::asio;
 
-export void run_server()
+export void run_server(int port)
 {
     try
     {
         spdlog::info("Starting up server. Listening on port 55555");
-        
+
         asio::io_context context;
 
         asio::signal_set signals(context, SIGINT, SIGTERM);
         signals.async_wait([&](auto, auto) { context.stop(); });
-        auto listen = listener(context, 55555);
-        
+        auto listen = listener(context, port);
+
         asio::co_spawn(context, std::move(listen), asio::detached);
 
         context.run();
@@ -31,6 +31,6 @@ export void run_server()
     }
     catch (std::exception& e)
     {
-        spdlog::error("Server failure: {}" , e.what());
+        spdlog::error("Server failure: {}", e.what());
     }
 }

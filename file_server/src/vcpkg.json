@@ -1,0 +1,8 @@
+{
+    "name": "file-server",
+    "version": "0.1",
+    "dependencies": [
+      "boost-asio",
+      "spdlog"
+    ]
+}

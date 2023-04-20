@@ -39,3 +39,9 @@ FileServerWin/.vs/
 FileClientWin/FileClientWin/x64/
 FileClientWin/x64/
 FileClientWin/.vs/
+
+file_client/bin/
+file_server/bin/
+
+#vscode settings
+.vscode/

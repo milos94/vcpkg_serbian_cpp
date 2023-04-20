@@ -1,0 +1,96 @@
+#include <spdlog/spdlog.h>
+#include <boost/asio/co_spawn.hpp>
+#include <boost/asio/detached.hpp>
+#include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/write.hpp>
+#include <boost/asio/io_context.hpp>
+#include <boost/asio/signal_set.hpp>
+#include <boost/asio/awaitable.hpp>
+#include <array>
+#include <fstream>
+
+#include "server.hpp"
+
+namespace asio = boost::asio;
+namespace sys = boost::system;
+using boost::asio::ip::tcp;
+
+asio::awaitable<void> session(tcp::socket socket)
+{
+    try
+    {
+        std::string data;
+        data.resize(1000, '\0');
+        std::size_t n = co_await socket.async_read_some(asio::buffer(data), asio::use_awaitable);
+        spdlog::info("Recieved '{}' from the client. Total {} bytes", data, n);
+
+        std::fstream file;
+        file.open(data, std::fstream::out | std::fstream::binary);
+
+        while (true)
+        {
+            if (n == 1)
+            {
+                break;
+            }
+            n = co_await socket.async_read_some(asio::buffer(data), asio::use_awaitable);
+            spdlog::debug("Got {} bytes from the client", n);
+            file.write(data.data(), n);
+
+        }
+
+        file.close();
+        spdlog::info("Successfuly recieved a file from client");
+
+        n = co_await socket.async_write_some(asio::buffer("Sucess"), asio::use_awaitable);
+    }
+    catch (sys::system_error const& e)
+    {
+        if (e.code() == asio::error::eof)
+            spdlog::info("Session done");
+        else
+            spdlog::error("Session had error {}", e.what());
+    }
+}
+
+asio::awaitable<void> listener(asio::io_context& context, unsigned short port)
+{
+    tcp::acceptor acceptor(context, { tcp::v4(), port });
+
+    try
+    {
+        for (;;)
+        {
+            tcp::socket socket = co_await acceptor.async_accept(asio::use_awaitable);
+            spdlog::info("Got new connection.");
+            asio::co_spawn(context, session(std::move(socket)), asio::detached);
+        }
+    }
+    catch (sys::system_error const& e)
+    {
+        spdlog::error("Listener had error {}", e.what());
+    }
+}
+
+void run_server(int port)
+{
+    try
+    {
+        spdlog::info("Starting up server. Listening on port 55555");
+
+        asio::io_context context;
+
+        asio::signal_set signals(context, SIGINT, SIGTERM);
+        signals.async_wait([&](auto, auto) { context.stop(); });
+        auto listen = listener(context, port);
+
+        asio::co_spawn(context, std::move(listen), asio::detached);
+
+        context.run();
+        spdlog::info("Server done");
+    }
+    catch (std::exception& e)
+    {
+        spdlog::error("Server failure: {}", e.what());
+    }
+}

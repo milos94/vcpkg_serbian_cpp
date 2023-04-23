@@ -16,7 +16,7 @@ export void run_server(int port)
 {
     try
     {
-        spdlog::info("Starting up server. Listening on port 55555");
+        spdlog::info("Starting up server. Listening on port {}", port);
 
         asio::io_context context;
 

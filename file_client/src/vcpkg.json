@@ -1,6 +1,4 @@
 {
-    "name": "file-client",
-    "version": "0.1",
     "dependencies": [
       "boost-asio",
       "spdlog"

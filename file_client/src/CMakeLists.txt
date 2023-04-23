@@ -11,6 +11,4 @@ add_subdirectory(client)
 
 add_executable(file_client main.cpp)
 
-find_package(spdlog REQUIRED)
-
-target_link_libraries(file_client PRIVATE client spdlog::spdlog)
+target_link_libraries(file_client PRIVATE client)

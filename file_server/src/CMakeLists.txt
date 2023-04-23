@@ -11,6 +11,4 @@ add_subdirectory(server)
 
 add_executable(file_server main.cpp)
 
-find_package(spdlog REQUIRED)
-
-target_link_libraries(file_server PRIVATE server spdlog::spdlog)
+target_link_libraries(file_server PRIVATE server)
